@@ -111,11 +111,15 @@ tiles = dict(
     latency_after=lat[0]["latency_p50"] if lat else tuned_s["latency_p50"], latency_opus_l1=opus_s["latency_p50"], latency_opus_l3=runs[("opus", "l3")][0]["latency_p50"],
     train_tokens_m=3.11, train_cost=6.65, train_minutes=30, train_examples=6400, train_steps=100, loss_first=loss[0]["loss"], loss_last=loss[-1]["loss"],
     model_name="accounts/wjing63/models/cadq-qwen36-35b-v1", run_id=state["run_id"],
+    per100_after_l3=runs[("tuned", "l3")][0]["usable_per_dollar"] * 100, per100_opus_l3=runs[("opus", "l3")][0]["usable_per_dollar"] * 100,
+    per100_haiku_l3=(load_run("haiku55-l3")[0]["usable_per_dollar"] * 100) if load_run("haiku55-l3") else None,
 )
 presets = [
     dict(label="Benchmark disc (tuned wins)", prompt=T1["00072791"]["prompt_l1"]),
     dict(label="Mounting bracket, free prose (tuned misses)", prompt="A rectangular mounting bracket: a flat base plate 0.75 long, 0.4 wide and 0.05 thick, with a vertical wall of the same length rising 0.3 at one long edge, and two through-holes of radius 0.04 in the base"),
     dict(label="Expert spec with coordinates", prompt=T1["00072791"]["prompt_l3"]),
+    dict(label="Flange with bolt holes", prompt="A flat circular flange 0.75 units in diameter and 0.05 units thick, with a central hole of radius 0.12 and four evenly spaced bolt holes of radius 0.04 near the rim."),
+    dict(label="Stepped shaft", prompt="A stepped cylindrical shaft along the vertical axis: a base cylinder of radius 0.2 and height 0.25, with a narrower cylinder of radius 0.1 and height 0.5 centered on top of it."),
 ]
 data = dict(tiles=tiles, loss=loss, checkpoints=ckpts, models=models, gallery=gallery, presets=presets)
 json.dump(data, open(os.path.join(OUT, "data.json"), "w"))

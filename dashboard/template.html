@@ -26,6 +26,11 @@ h2{font-size:21px;font-weight:600;margin-top:44px;padding-top:16px;border-top:1p
 h3{font-size:16px;font-weight:600}
 .sub{color:var(--muted);margin-top:6px;max-width:80ch}
 .num{font-variant-numeric:tabular-nums}
+.hero .renders{grid-template-columns:repeat(4,1fr)}
+.hero .prompt{font-size:14px;margin:0 0 10px;max-width:none}
+.hero .hint{font-size:12.5px;color:var(--muted);margin-top:6px}
+.lc .timer{font-variant-numeric:tabular-nums}
+.vhead label{font-size:13px;color:#fff;display:flex;align-items:center;gap:6px;cursor:pointer}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:18px}
 .tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
 .tile b{display:block;font-size:13px;color:var(--muted);font-weight:500}
@@ -99,6 +104,7 @@ a{color:var(--cool)}
 <p class="sub">One $7 LoRA run on Fireworks Serverless Training, scored on 300 held-out benchmark parts against the untuned model and Claude. Every number here comes from executing the generated code and comparing the mesh to the ground-truth part.</p>
 
 <div class="tiles" id="tiles"></div>
+<div class="panel hero" id="hero"></div>
 
 <h2>Training run</h2>
 <p class="sub" id="trainsub"></p>
@@ -166,7 +172,7 @@ a{color:var(--cool)}
 </figure>
 </main>
 <div class="viewer" id="viewer" role="dialog" aria-label="3D comparison">
-  <div class="vhead"><b id="vtitle">3D view</b><span>drag to rotate · wheel to zoom · all panes share the same view</span><button id="vclose">Close (Esc)</button></div>
+  <div class="vhead"><b id="vtitle">3D view</b><span>drag to rotate · wheel to zoom · all panes share the same view</span><label><input type="checkbox" id="voverlay"> overlay tuned on ground truth</label><button id="vclose">Close (Esc)</button></div>
   <canvas id="vcanvas"></canvas>
   <div class="vlabels" id="vlabels"></div>
 </div>
@@ -188,6 +194,7 @@ const tiles = [
   ["Usable parts, abstract prompts", pct(T.usable_before_l1), pct(T.usable_after_l1), `Opus 5.5: ${pct(T.usable_opus_l1)}`],
   ["Cost per 1k parts, expert", null, "$"+T.cost_after_l3.toFixed(2), `Opus 5.5: $${T.cost_opus_l3.toFixed(2)} (${(T.cost_opus_l3/T.cost_after_l3).toFixed(0)}× more)`],
   ["Latency p50", null, T.latency_after.toFixed(1)+" s", `Opus 5.5: ${T.latency_opus_l1.toFixed(1)} s abstract, ${T.latency_opus_l3.toFixed(1)} s expert`],
+  ["Usable parts per $100, expert specs", null, Math.round(T.per100_after_l3).toLocaleString(), `Opus 5.5: ${Math.round(T.per100_opus_l3).toLocaleString()}${T.per100_haiku_l3?` · Haiku 5.5: ${Math.round(T.per100_haiku_l3).toLocaleString()}`:''}`],
 ];
 document.getElementById('tiles').innerHTML = tiles.map(([b,before,after,ref]) =>
   `<div class="tile"><b>${b}</b><div class="big num">${before!==null?`<span class="before">${before}</span> <span class="arrow">→</span> `:""}${after}</div><div class="ref num">${ref}</div></div>`).join("");
@@ -248,6 +255,7 @@ function hl(code, err){ // highlight the method named in an AttributeError/TypeE
   const m = /attribute '(\w+)'|Workplane\.(\w+)\(\)|has no attribute '(\w+)'/.exec(err||''); const name = m && (m[1]||m[2]||m[3]);
   let h = esc(code); if(name) h = h.replace(new RegExp('\\.'+name+'\\(','g'), `<span class="hl">.${name}(</span>`); return h;
 }
+const cdTxt = v => v==null ? 'did not run' : `CD ${v.toFixed(1)}`;
 const cdc = v => v==null?'<span class="cd">did not run</span>':`<span class="cd ${v<10?'good':(v>25?'bad':'')}">CD ${v.toFixed(1)}</span>`;
 const G = D.gallery, order={win:0,parity:1,miss:2}; G.sort((a,b)=>order[a.group]-order[b.group]);
 const tagTxt={win:'tuned ≫ untuned', parity:'tuned ≈ Opus', miss:'honest miss'};
@@ -260,6 +268,16 @@ document.getElementById('gallery').innerHTML = G.map(g=>{
 }).join('');
 
 
+// ---- hero strip: the first "win" part, same card anatomy as the gallery
+const H = G.find(g=>g.group==='win' && g.renders.gt && g.renders.tuned && g.renders.opus && !g.ok.base) || G[0];
+document.getElementById('hero').innerHTML = `<h3>Same sentence, three models</h3><p class="prompt">“${esc(H.prompt)}”</p>
+  <div class="renders">${['gt','base','tuned','opus'].map(t=>{const lbl={gt:'Ground truth',base:'Untuned Qwen 3.6',tuned:'Tuned Qwen 3.6 (ours)',opus:'Claude Opus 5.5'}[t];
+    return `<div class="r ${t==='tuned'?'ours':''}">${H.renders[t]?`<img src="${H.renders[t]}" alt="${lbl}">`:`<div class="none">${esc((H.error&&H.error[t]||'no output').slice(0,80))}</div>`}<div class="lbl"><b>${lbl}</b> ${t==='gt'?'':cdc(H.cd[t])}</div></div>`;}).join('')}</div>
+  <div class="hint">Click a render to rotate all four in 3D. The untuned model's failure is the "before"; the tuned model is the same weights plus a $7 adapter.</div>`;
+document.getElementById('hero').addEventListener('click', e => { if (!e.target.closest('.r')) return; V.open(`Part ${H.uid}: ground truth vs untuned vs tuned vs Opus 5.5`, [
+  {label:'Ground truth', mesh:H.mesh.gt, gt:true}, {label:'Untuned', mesh:H.mesh.base, note:cdTxt(H.cd.base)},
+  {label:'Tuned (ours)', mesh:H.mesh.tuned, ours:true, note:cdTxt(H.cd.tuned)}, {label:'Claude Opus 5.5', mesh:H.mesh.opus, note:cdTxt(H.cd.opus)}]); });
+
 // ---- 3D viewer (one WebGL context, N panes, shared rotation)
 const V = (() => {
   const canvas = document.getElementById('vcanvas'), modal = document.getElementById('viewer'), labels = document.getElementById('vlabels');
@@ -270,9 +288,19 @@ const V = (() => {
     const u8 = new Uint8Array(arr.buffer); for (let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(arr, 3)); g.computeVertexNormals(); return g;
   }
-  function open(title, panes){ // panes: [{label, mesh (payload|null), ours, note}]
+  let curPanes = [];
+  function open(title, panes, overlay){ // panes: [{label, mesh (payload|null), ours, note, gt}]
     if (!renderer) { renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true}); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); }
-    document.getElementById('vtitle').textContent = title;
+    document.getElementById('vtitle').textContent = title; curPanes = panes;
+    const ov = document.getElementById('voverlay'); const gtP = panes.find(p=>p.gt), ourP = panes.find(p=>p.ours);
+    ov.parentElement.style.display = (gtP && ourP) ? '' : 'none'; if (overlay === undefined) ov.checked = false;
+    if (ov.checked && gtP && ourP) {
+      const sc = new THREE.Scene(); sc.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.9)); const dl = new THREE.DirectionalLight(0xffffff, 0.8); dl.position.set(2,3,4); sc.add(dl);
+      if (gtP.mesh) sc.add(new THREE.Mesh(geom(gtP.mesh), new THREE.MeshStandardMaterial({color:0x7a8a7f, metalness:0.1, roughness:0.7, flatShading:true})));
+      if (ourP.mesh) { const m = new THREE.Mesh(geom(ourP.mesh), new THREE.MeshStandardMaterial({color:hex('--accent'), transparent:true, opacity:0.55, flatShading:true, depthWrite:false})); sc.add(m); sc.add(new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 25), new THREE.LineBasicMaterial({color:hex('--accent')}))); }
+      scenes = [sc]; labels.style.gridTemplateColumns = '1fr'; labels.innerHTML = `<div class="ours">Tuned (orange, translucent) over ground truth (grey)${ourP.note?` · ${ourP.note}`:''}</div>`;
+      modal.classList.add('on'); if (!raf) loop(); return;
+    }
     scenes = panes.map(p => {
       const sc = new THREE.Scene();
       sc.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.9));
@@ -287,8 +315,10 @@ const V = (() => {
     });
     labels.style.gridTemplateColumns = `repeat(${panes.length},1fr)`;
     labels.innerHTML = panes.map(p => `<div class="${p.ours?'ours':''}">${p.label}${p.note?` · ${p.note}`:''}${p.mesh?'':' · no mesh'}</div>`).join('');
-    modal.classList.add('on'); auto = true; zoom = 3.4; camRot = {x: -0.6, y: 0.7}; loop();
+    if (!modal.classList.contains('on')) { auto = true; zoom = 3.4; camRot = {x: -0.6, y: 0.7}; }
+    modal.classList.add('on'); if (!raf) loop();
   }
+  document.getElementById('voverlay').addEventListener('change', () => open(document.getElementById('vtitle').textContent, curPanes, true));
   function close(){ modal.classList.remove('on'); if (raf) cancelAnimationFrame(raf); raf = null; }
   function loop(){
     const w = canvas.clientWidth, h = canvas.clientHeight; if (canvas.width !== w*renderer.getPixelRatio() || canvas.height !== h*renderer.getPixelRatio()) renderer.setSize(w, h, false);
@@ -310,7 +340,6 @@ const V = (() => {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
   return {open, close};
 })();
-const cdTxt = v => v==null ? 'did not run' : `CD ${v.toFixed(1)}`;
 document.getElementById('gallery').addEventListener('click', e => {
   const img = e.target.closest('.r img, .r .none'); if (!img) return;
   const card = e.target.closest('.card'); const g = G[[...document.querySelectorAll('#gallery .card')].indexOf(card)];
@@ -329,8 +358,9 @@ if (window.LIVE) {
   const box = document.getElementById('livecards');
   async function runAll(){
     const prompt = ta.value.trim(); if(!prompt) return; document.querySelectorAll('.v3d').forEach(x=>x.remove());
-    box.innerHTML = Object.entries(cards).map(([k,[t,s]])=>`<div class="lc ${k==='tuned'?'ours':''}" id="lc-${k}"><h3>${t} <span>${s}</span></h3><div class="stat status wait"><span class="spinner"></span>generating…</div></div>`).join('');
-    const live = {};
+    box.innerHTML = Object.entries(cards).map(([k,[t,s]])=>`<div class="lc ${k==='tuned'?'ours':''}" id="lc-${k}"><h3>${t} <span>${s}</span></h3><div class="stat status wait"><span class="spinner"></span>generating… <span class="timer">0.0 s</span></div></div>`).join('');
+    const live = {}; const t0 = performance.now();
+    const tick = setInterval(() => document.querySelectorAll('#livecards .timer').forEach(el => el.textContent = ((performance.now()-t0)/1000).toFixed(1)+' s'), 100);
     await Promise.all(Object.keys(cards).map(async k=>{
       const el = document.getElementById('lc-'+k);
       try{
@@ -342,6 +372,7 @@ if (window.LIVE) {
           <details><summary>code</summary><pre>${esc(r.code||'')}</pre></details>`;
       }catch(e){ el.querySelector('.stat').textContent = 'request failed: '+e; }
     }));
+    clearInterval(tick);
     const b = document.createElement('div'); b.className = 'btns v3d'; b.innerHTML = '<button class="primary" id="live3d">Rotate all three in 3D</button>'; box.after(b);
     document.getElementById('live3d').addEventListener('click', () => V.open('Live result: untuned vs tuned vs Opus 5.5', [
       {label:'Untuned', mesh:live.base&&live.base.mesh, note: live.base&&live.base.ok?`${live.base.latency.toFixed(1)} s`:'failed'},
