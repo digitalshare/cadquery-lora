@@ -1,0 +1,19 @@
+{
+  "name": "qwen36-35b-base-l3",
+  "model": "base|accounts/fireworks/models/qwen3p6-35b-a3b|Qwen/Qwen3.6-35B-A3B",
+  "level": "l3",
+  "n": 300,
+  "exec_rate": 0.08333333333333333,
+  "cd_mean": 28.884121948607675,
+  "cd_median": 27.116524961486704,
+  "cd_all_penalized": 94.07367682905064,
+  "iou_mean": 34.26380296334738,
+  "cd_lt_5_rate": 0.01,
+  "cd_lt_10_rate": 0.016666666666666666,
+  "latency_p50": 12.092037200927734,
+  "latency_mean": 12.10657381216685,
+  "tokens_in": 200727,
+  "tokens_out": 482431,
+  "cost_usd": 0.734372535,
+  "cost_per_1k_parts": 2.44790845
+}

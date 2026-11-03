@@ -1,0 +1,26 @@
+[
+  {
+    "model": "ckpt|wjing63/run-04415322249b49f0977058f0d3373dfc/v1-s100-6b9b19e0|Qwen/Qwen3.6-35B-A3B",
+    "ok": true,
+    "err": "",
+    "latency": 2.22,
+    "tokens_out": 338,
+    "png": "demo/bracket/Qwen3.6-35B-A3B.png"
+  },
+  {
+    "model": "claude-opus-5-5",
+    "ok": true,
+    "err": "",
+    "latency": 2.55,
+    "tokens_out": 250,
+    "png": "demo/bracket/claude-opus-5-5.png"
+  },
+  {
+    "model": "accounts/fireworks/models/gpt-oss-120b",
+    "ok": true,
+    "err": "",
+    "latency": 5.77,
+    "tokens_out": 1592,
+    "png": "demo/bracket/gpt-oss-120b.png"
+  }
+]

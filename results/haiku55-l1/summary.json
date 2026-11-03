@@ -1,0 +1,19 @@
+{
+  "name": "haiku55-l1",
+  "model": "claude-haiku-5-5",
+  "level": "l1",
+  "n": 300,
+  "exec_rate": 0.9966666666666667,
+  "cd_mean": 16.91043859957074,
+  "cd_median": 12.660948234858067,
+  "cd_all_penalized": 17.187403804238837,
+  "iou_mean": 42.17402752559064,
+  "cd_lt_5_rate": 0.2,
+  "cd_lt_10_rate": 0.42,
+  "latency_p50": 2.6545010805130005,
+  "latency_mean": 3.2117237424850464,
+  "tokens_in": 58469,
+  "tokens_out": 184265,
+  "cost_usd": 0.0979794,
+  "cost_per_1k_parts": 0.326598
+}

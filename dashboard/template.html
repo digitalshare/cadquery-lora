@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Text to CadQuery dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{
+  /* layout: full-width dashboard, 1200px max, summary tiles first, then charts, then gallery and live demo */
+  --bg:#f6f7f4; --ink:#1d2320; --muted:#5d665f; --line:#cfd5cd; --panel:#ffffff;
+  --accent:#b8521d; --accent-soft:#f6e3d6; --cool:#2b6a8e; --cool-soft:#dbe8f0; --ok:#2e7d4f; --bad:#b3261e; --grey:#8a938c;
+  --display:"IBM Plex Sans",system-ui,sans-serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ color-scheme:dark; --bg:#171a18; --ink:#e8ebe6; --muted:#a3aca5; --line:#3a413c; --panel:#20241f; --accent:#e9865a; --accent-soft:#3b2a20; --cool:#7fb3d3; --cool-soft:#20313c; --ok:#6fc48f; --bad:#f08c84; --grey:#7d867f; } }
+:root[data-theme="dark"]{ color-scheme:dark; --bg:#171a18; --ink:#e8ebe6; --muted:#a3aca5; --line:#3a413c; --panel:#20241f; --accent:#e9865a; --accent-soft:#3b2a20; --cool:#7fb3d3; --cool-soft:#20313c; --ok:#6fc48f; --bad:#f08c84; --grey:#7d867f; }
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;padding:28px 16px 80px}
+main{max-width:1200px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;line-height:1.2;margin:0}
+h1{font-size:30px;font-weight:600}
+h2{font-size:21px;font-weight:600;margin-top:44px;padding-top:16px;border-top:1px solid var(--line)}
+h3{font-size:16px;font-weight:600}
+.sub{color:var(--muted);margin-top:6px;max-width:80ch}
+.num{font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-top:18px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.tile b{display:block;font-size:13px;color:var(--muted);font-weight:500}
+.tile .big{font-size:28px;font-weight:600;font-family:var(--display);margin-top:4px}
+.tile .before{color:var(--muted);font-size:15px;font-weight:400}
+.tile .ref{font-size:12.5px;color:var(--muted);margin-top:4px}
+.tile .arrow{color:var(--accent)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-top:16px}
+.row{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px;margin-top:16px}
+canvas{max-width:100%}
+.cap{font-size:13px;color:var(--muted);margin-top:8px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;margin-top:8px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:middle;background:var(--c)}
+.gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(540px,1fr));gap:14px;margin-top:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;overflow:hidden}
+.card .prompt{font-size:14px;max-width:none;margin:0 0 10px}
+.card .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;margin-right:6px}
+.tag.win{background:var(--accent-soft);color:var(--accent)} .tag.parity{background:var(--cool-soft);color:var(--cool)} .tag.miss{background:var(--line);color:var(--muted)}
+.renders{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.r img{width:100%;aspect-ratio:6/5;object-fit:cover;border:1px solid var(--line);border-radius:6px;background:#fff}
+.r .none{width:100%;aspect-ratio:6/5;border:1px dashed var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);text-align:center;padding:6px}
+.r .lbl{font-size:12.5px;margin-top:4px}
+.r .lbl b{font-weight:600}
+.r.ours img{border-color:var(--accent)}
+.cd{font-variant-numeric:tabular-nums;color:var(--muted)}
+.cd.good{color:var(--ok);font-weight:600} .cd.bad{color:var(--bad)}
+details{margin-top:10px}
+summary{cursor:pointer;font-size:13px;color:var(--cool)}
+.codes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+pre{font-family:var(--mono);font-size:11.5px;line-height:1.4;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;overflow:auto;max-height:260px;margin:0;white-space:pre}
+pre .hl{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.live{display:none}
+.live.on{display:block}
+textarea{width:100%;min-height:72px;font:inherit;font-size:14px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink)}
+.btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+button{font:inherit;font-size:14px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+button:focus-visible{outline:2px solid var(--cool);outline-offset:2px}
+.livecards{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px}
+.lc{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;min-height:200px}
+.lc.ours{border-color:var(--accent)}
+.lc h3 span{font-weight:400;color:var(--muted);font-size:13px}
+.lc img{width:100%;aspect-ratio:6/5;object-fit:cover;border:1px solid var(--line);border-radius:6px;background:#fff;margin-top:8px}
+.lc .stat{font-size:13px;color:var(--muted);margin-top:6px}
+.lc .status{font-weight:600}
+.status.ok{color:var(--ok)} .status.fail{color:var(--bad)} .status.wait{color:var(--muted)}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){ .spinner{animation:none} }
+figure{margin:16px 0 0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;overflow-x:auto}
+figure svg{display:block;max-width:100%;height:auto;color:var(--ink)}
+figcaption{font-size:13px;color:var(--muted);margin-top:8px}
+a{color:var(--cool)}
+@media (max-width:640px){ .renders{grid-template-columns:repeat(2,1fr)} .codes{grid-template-columns:1fr} .gallery{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<main>
+<h1>Text to CadQuery: before and after fine-tuning</h1>
+<p class="sub">One $7 LoRA run on Fireworks Serverless Training, scored on 300 held-out benchmark parts against the untuned model and Claude. Every number here comes from executing the generated code and comparing the mesh to the ground-truth part.</p>
+
+<div class="tiles" id="tiles"></div>
+
+<h2>Training run</h2>
+<p class="sub" id="trainsub"></p>
+<div class="row">
+  <div class="panel"><h3>Loss per optimizer step</h3><canvas id="lossChart" height="220"></canvas><div class="cap">Average negative log-probability of the reference code tokens. Markers are the four saved checkpoints; hover one for its scores.</div></div>
+  <div class="panel"><h3>Scores by checkpoint</h3><canvas id="ckptChart" height="220"></canvas><div class="cap">Execution rate and usable-part rate (code ran and Chamfer distance &lt; 10) at each checkpoint, both prompt levels. Step 0 is the untuned model.</div></div>
+</div>
+
+<h2>Against the field</h2>
+<p class="sub">Same 300 parts, same system prompt, greedy decoding, list prices. <em>Abstract</em> prompts are one-sentence descriptions; <em>expert</em> prompts are full specs with coordinates.</p>
+<div class="row">
+  <div class="panel"><h3>Execution rate</h3><canvas id="execChart" height="230"></canvas></div>
+  <div class="panel"><h3>Usable parts (ran and Chamfer &lt; 10)</h3><canvas id="usableChart" height="230"></canvas></div>
+  <div class="panel"><h3>Cost per 1,000 parts ($, log scale)</h3><canvas id="costChart" height="230"></canvas></div>
+  <div class="panel"><h3>Latency p50 (s)</h3><canvas id="latChart" height="230"></canvas></div>
+</div>
+<div class="panel"><h3>Quality vs cost, expert prompts</h3><canvas id="scatterChart" height="120"></canvas><div class="cap">Up and to the left is better. The tuned model is the only open model in the usable band, at a fraction of the closed models' cost.</div></div>
+
+<h2>Before and after, part by part</h2>
+<p class="sub">Benchmark parts with the abstract prompt. Ground truth, then the untuned model, the tuned model, and Claude Opus 5.5 on the same sentence. Chamfer distance (×100, lower is better) under each render. Tags: <span class="tag win">tuned ≫ untuned</span> <span class="tag parity">tuned ≈ Opus</span> <span class="tag miss">honest miss</span></p>
+<div class="gallery" id="gallery"></div>
+
+<section class="live" id="live">
+<h2>Live: type a part, watch both models build it</h2>
+<p class="sub">Runs the untuned base, the tuned checkpoint, and Claude Opus 5.5 right now. Base and tuned are sampled from Fireworks Serverless Training; code is executed locally and rendered.</p>
+<div class="panel">
+  <label for="prompt" style="font-size:13px;color:var(--muted)">Part description</label>
+  <textarea id="prompt"></textarea>
+  <div class="btns" id="presets"></div>
+  <div class="btns"><button class="primary" id="runBtn">Build it</button></div>
+</div>
+<div class="livecards" id="livecards"></div>
+</section>
+
+<h2>How the pieces fit</h2>
+<figure>
+<svg viewBox="0 0 920 300" role="img" aria-label="Serverless training path: SDK session, run, checkpoint, sampler, eval; checkpoints can be promoted to a model.">
+  <defs><marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+  <g font-size="12" fill="currentColor" font-family="IBM Plex Sans, system-ui, sans-serif">
+    <text x="20" y="28" font-weight="600">Data (laptop)</text>
+    <rect x="20" y="42" width="150" height="50" rx="8" fill="none" stroke="currentColor"/><text x="95" y="63" text-anchor="middle" font-weight="600">Text2CAD + code</text><text x="95" y="80" text-anchor="middle" font-size="11">29,783 verified pairs</text>
+    <line x1="170" y1="67" x2="208" y2="67" stroke="currentColor" stroke-width="1.5" marker-end="url(#a4)"/>
+    <rect x="210" y="42" width="150" height="50" rx="8" fill="none" stroke="currentColor"/><text x="285" y="63" text-anchor="middle" font-weight="600">Tokenize + mask</text><text x="285" y="80" text-anchor="middle" font-size="11">loss on code tokens only</text>
+    <line x1="360" y1="67" x2="398" y2="67" stroke="currentColor" stroke-width="1.5" marker-end="url(#a4)"/>
+    <rect x="400" y="42" width="150" height="50" rx="8" fill="var(--accent-soft)" stroke="var(--accent)"/><text x="475" y="63" text-anchor="middle" font-weight="600" fill="var(--accent)">Training loop</text><text x="475" y="80" text-anchor="middle" font-size="11" fill="var(--accent)">64 examples / step, 100 steps</text>
+    <text x="20" y="160" font-weight="600" fill="var(--cool)">Fireworks Serverless Training</text>
+    <rect x="20" y="174" width="150" height="50" rx="8" fill="var(--panel)" stroke="var(--cool)"/><text x="95" y="195" text-anchor="middle" font-weight="600" fill="var(--cool)">Session</text><text x="95" y="212" text-anchor="middle" font-size="11">ts-… one training slot</text>
+    <line x1="170" y1="199" x2="208" y2="199" stroke="var(--cool)" stroke-width="1.5" marker-end="url(#a4)"/>
+    <rect x="210" y="174" width="150" height="50" rx="8" fill="var(--panel)" stroke="var(--cool)"/><text x="285" y="195" text-anchor="middle" font-weight="600" fill="var(--cool)">Run (LoRA r=16)</text><text x="285" y="212" text-anchor="middle" font-size="11">forward_backward, optim_step</text>
+    <line x1="360" y1="199" x2="398" y2="199" stroke="var(--cool)" stroke-width="1.5" marker-end="url(#a4)"/>
+    <rect x="400" y="174" width="150" height="50" rx="8" fill="var(--panel)" stroke="var(--cool)"/><text x="475" y="195" text-anchor="middle" font-weight="600" fill="var(--cool)">Checkpoints</text><text x="475" y="212" text-anchor="middle" font-size="11">s25 s50 s75 s100</text>
+    <line x1="550" y1="199" x2="588" y2="199" stroke="var(--cool)" stroke-width="1.5" marker-end="url(#a4)"/>
+    <rect x="590" y="174" width="150" height="50" rx="8" fill="var(--panel)" stroke="var(--cool)"/><text x="665" y="195" text-anchor="middle" font-weight="600" fill="var(--cool)">Sampler</text><text x="665" y="212" text-anchor="middle" font-size="11">generates code, per token</text>
+    <line x1="740" y1="199" x2="778" y2="199" stroke="var(--cool)" stroke-width="1.5" marker-end="url(#a4)"/>
+    <rect x="780" y="174" width="120" height="50" rx="8" fill="var(--panel)" stroke="currentColor"/><text x="840" y="195" text-anchor="middle" font-weight="600">Eval harness</text><text x="840" y="212" text-anchor="middle" font-size="11">run, mesh, score</text>
+    <line x1="475" y1="92" x2="475" y2="172" stroke="var(--accent)" stroke-width="1.5" marker-end="url(#a4)"/>
+    <text x="490" y="135" font-size="11" fill="var(--accent)">batches up, logprobs back</text>
+    <line x1="475" y1="224" x2="475" y2="262" stroke="var(--cool)" stroke-width="1.2" stroke-dasharray="5 3" marker-end="url(#a4)"/>
+    <rect x="400" y="264" width="150" height="30" rx="6" fill="none" stroke="var(--cool)" stroke-dasharray="5 3"/>
+    <text x="475" y="283" text-anchor="middle" font-size="11" fill="var(--cool)">promote → deployable model</text>
+    <text x="560" y="283" font-size="11" fill="var(--muted)" id="modelname"></text>
+  </g>
+</svg>
+<figcaption>Data preparation and the training loop run on the laptop; Fireworks runs the GPUs. Checkpoints are sampled directly for evaluation, and the final one was promoted to a model in the account. Full explainer with the task, LoRA, and scoring diagrams: see the companion page.</figcaption>
+</figure>
+</main>
+
+<script>
+window.LIVE=false;
+const D = /*__DATA__*/null;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const pct = x => (x*100).toFixed(x>=0.995?1:1)+"%";
+const COLORS = {closed: css('--grey'), open: css('--cool'), ours: css('--accent')};
+Chart.defaults.color = css('--ink'); Chart.defaults.borderColor = css('--line'); Chart.defaults.font.family = css('--body');
+
+// ---- tiles
+const T = D.tiles;
+const tiles = [
+  ["Execution rate, expert specs", pct(T.exec_before_l3), pct(T.exec_after_l3), `Opus 5.5: ${pct(T.exec_opus_l3)}`],
+  ["Execution rate, abstract prompts", pct(T.exec_before_l1), pct(T.exec_after_l1), `Opus 5.5: ${pct(T.exec_opus_l1)}`],
+  ["Usable parts, expert specs", pct(T.usable_before_l3), pct(T.usable_after_l3), `Opus 5.5: ${pct(T.usable_opus_l3)}`],
+  ["Usable parts, abstract prompts", pct(T.usable_before_l1), pct(T.usable_after_l1), `Opus 5.5: ${pct(T.usable_opus_l1)}`],
+  ["Cost per 1k parts, expert", null, "$"+T.cost_after_l3.toFixed(2), `Opus 5.5: $${T.cost_opus_l3.toFixed(2)} (${(T.cost_opus_l3/T.cost_after_l3).toFixed(0)}× more)`],
+  ["Latency p50", null, T.latency_after.toFixed(1)+" s", `Opus 5.5: ${T.latency_opus_l1.toFixed(1)} s abstract, ${T.latency_opus_l3.toFixed(1)} s expert`],
+];
+document.getElementById('tiles').innerHTML = tiles.map(([b,before,after,ref]) =>
+  `<div class="tile"><b>${b}</b><div class="big num">${before!==null?`<span class="before">${before}</span> <span class="arrow">→</span> `:""}${after}</div><div class="ref num">${ref}</div></div>`).join("");
+document.getElementById('trainsub').textContent = `Qwen 3.6 35B-A3B (3B active) + LoRA rank 16 · ${T.train_examples.toLocaleString()} examples · ${T.train_steps} steps · ${T.train_tokens_m}M tokens · about $${T.train_cost.toFixed(0)} · ${T.train_minutes} min · loss ${T.loss_first.toFixed(2)} → ${T.loss_last.toFixed(2)} · run ${T.run_id}`;
+document.getElementById('modelname').textContent = T.model_name;
+
+// ---- loss chart
+const ck = D.checkpoints.filter(c=>c.step>0);
+new Chart(document.getElementById('lossChart'), {
+  type:'line',
+  data:{ datasets:[
+    {label:'loss', data:D.loss.map(p=>({x:p.step,y:p.loss})), borderColor:COLORS.ours, backgroundColor:COLORS.ours, pointRadius:0, borderWidth:2, tension:0.2},
+    {label:'checkpoint', data:ck.map(c=>({x:c.step, y:D.loss[c.step-1].loss, c})), showLine:false, pointRadius:6, pointStyle:'rectRot', borderColor:COLORS.open, backgroundColor:COLORS.open}
+  ]},
+  options:{ responsive:true, scales:{ x:{type:'linear', title:{display:true,text:'optimizer step'}, min:0, max:100}, y:{title:{display:true,text:'loss'}, min:0} },
+    plugins:{ legend:{display:false}, tooltip:{callbacks:{label:(i)=>{ const c=i.raw.c; if(!c) return `loss ${i.raw.y.toFixed(3)}`; return [`${c.name}: loss ${i.raw.y.toFixed(3)}`, c.l1?`abstract: exec ${pct(c.l1.exec)}, usable ${pct(c.l1.usable)}`:'', c.l3?`expert: exec ${pct(c.l3.exec)}, usable ${pct(c.l3.usable)}`:''].filter(Boolean);}}}}}
+});
+
+// ---- checkpoint progression
+const labels = D.checkpoints.map(c=>c.step===0?'untuned':`step ${c.step}`);
+new Chart(document.getElementById('ckptChart'), {
+  type:'line',
+  data:{labels, datasets:[
+    {label:'exec, abstract', data:D.checkpoints.map(c=>c.l1?c.l1.exec*100:null), borderColor:COLORS.ours, backgroundColor:COLORS.ours, borderWidth:2},
+    {label:'exec, expert', data:D.checkpoints.map(c=>c.l3?c.l3.exec*100:null), borderColor:COLORS.ours, backgroundColor:COLORS.ours, borderDash:[6,4], borderWidth:2},
+    {label:'usable, abstract', data:D.checkpoints.map(c=>c.l1?c.l1.usable*100:null), borderColor:COLORS.open, backgroundColor:COLORS.open, borderWidth:2},
+    {label:'usable, expert', data:D.checkpoints.map(c=>c.l3?c.l3.usable*100:null), borderColor:COLORS.open, backgroundColor:COLORS.open, borderDash:[6,4], borderWidth:2},
+  ]},
+  options:{responsive:true, scales:{y:{min:0,max:100,title:{display:true,text:'%'}}}, plugins:{legend:{position:'bottom'}}}
+});
+
+// ---- comparison bars
+const M = D.models;
+function bars(id, key, fmt, opts={}){
+  new Chart(document.getElementById(id), {
+    type:'bar',
+    data:{labels:M.map(m=>m.label.replace(' 35B-A3B','')), datasets:[
+      {label:'abstract', data:M.map(m=>m.l1?m.l1[key]:null), backgroundColor:M.map(m=>COLORS[m.kind]), borderWidth:0},
+      {label:'expert', data:M.map(m=>m.l3?m.l3[key]:null), backgroundColor:M.map(m=>COLORS[m.kind]+'80'), borderWidth:0},
+    ]},
+    options:{responsive:true, indexAxis:'y', scales:{y:{ticks:{autoSkip:false, font:{size:11}}}, x:Object.assign({beginAtZero:true, ticks:{callback:v=>fmt(v)}}, opts.x||{})}, plugins:{legend:{position:'bottom'}, tooltip:{callbacks:{label:i=>`${i.dataset.label}: ${i.raw==null?'n/a':fmt(i.raw)}`}}}}
+  });
+}
+bars('execChart','exec', v=>(v*100).toFixed(0)+'%', {x:{max:1}});
+bars('usableChart','usable', v=>(v*100).toFixed(0)+'%', {x:{max:0.5}});
+bars('costChart','cost', v=>'$'+(+v).toFixed(2), {x:{type:'logarithmic', min:0.1, ticks:{callback:(v)=>[0.1,0.3,1,3,10,30].includes(+v)?'$'+v:null, maxRotation:0}}});
+bars('latChart','latency', v=>(+v).toFixed(1)+' s');
+new Chart(document.getElementById('scatterChart'), {
+  type:'scatter',
+  data:{datasets:M.filter(m=>m.l3).map(m=>({label:m.label, data:[{x:m.l3.cost, y:m.l3.usable*100}], backgroundColor:COLORS[m.kind], pointRadius:m.kind==='ours'?10:7}))},
+  options:{responsive:true, scales:{x:{type:'logarithmic', title:{display:true,text:'$ per 1k parts (log)'}}, y:{min:0,max:50,title:{display:true,text:'usable parts %'}}}, plugins:{legend:{position:'bottom'}}}
+});
+
+// ---- gallery
+const HALL = /\.(scale|filter|cone|transformed|polyline|hole|box)\(/g;
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function hl(code, err){ // highlight the method named in an AttributeError/TypeError
+  const m = /attribute '(\w+)'|Workplane\.(\w+)\(\)|has no attribute '(\w+)'/.exec(err||''); const name = m && (m[1]||m[2]||m[3]);
+  let h = esc(code); if(name) h = h.replace(new RegExp('\\.'+name+'\\(','g'), `<span class="hl">.${name}(</span>`); return h;
+}
+const cdc = v => v==null?'<span class="cd">did not run</span>':`<span class="cd ${v<10?'good':(v>25?'bad':'')}">CD ${v.toFixed(1)}</span>`;
+const G = D.gallery, order={win:0,parity:1,miss:2}; G.sort((a,b)=>order[a.group]-order[b.group]);
+const tagTxt={win:'tuned ≫ untuned', parity:'tuned ≈ Opus', miss:'honest miss'};
+document.getElementById('gallery').innerHTML = G.map(g=>{
+  const r = (tag,label,ours) => `<div class="r ${ours?'ours':''}">${g.renders[tag]?`<img src="${g.renders[tag]}" alt="${label}">`:`<div class="none">${tag==='gt'?'no mesh':(g.error&&g.error[tag]?esc(g.error[tag].slice(0,70)):'no output')}</div>`}<div class="lbl"><b>${label}</b> ${tag==='gt'?'':cdc(g.cd[tag])}</div></div>`;
+  return `<div class="card"><span class="tag ${g.group}">${tagTxt[g.group]}</span><span class="cd">part ${g.uid} · ${g.n_ops} op${g.n_ops>1?'s':''}</span>
+  <p class="prompt">“${esc(g.prompt)}”</p>
+  <div class="renders">${r('gt','Ground truth')}${r('base','Untuned')}${r('tuned','Tuned',true)}${r('opus','Opus 5.5')}</div>
+  <details><summary>Show the code: untuned vs tuned</summary><div class="codes"><pre>${hl(g.code.base||'(no code)', g.error&&g.error.base)}</pre><pre>${esc(g.code.tuned||'(no code)')}</pre></div></details></div>`;
+}).join('');
+
+// ---- live demo
+if (window.LIVE) {
+  document.getElementById('live').classList.add('on');
+  const ta = document.getElementById('prompt'); ta.value = D.presets[0].prompt;
+  document.getElementById('presets').innerHTML = D.presets.map((p,i)=>`<button data-i="${i}">${p.label}</button>`).join('');
+  document.getElementById('presets').addEventListener('click', e=>{ const b=e.target.closest('button'); if(b) ta.value = D.presets[+b.dataset.i].prompt; });
+  const cards = {base:['Untuned Qwen 3.6','before'], tuned:['Tuned Qwen 3.6','after, our model'], opus:['Claude Opus 5.5','closed reference']};
+  const box = document.getElementById('livecards');
+  async function runAll(){
+    const prompt = ta.value.trim(); if(!prompt) return;
+    box.innerHTML = Object.entries(cards).map(([k,[t,s]])=>`<div class="lc ${k==='tuned'?'ours':''}" id="lc-${k}"><h3>${t} <span>${s}</span></h3><div class="stat status wait"><span class="spinner"></span>generating…</div></div>`).join('');
+    await Promise.all(Object.keys(cards).map(async k=>{
+      const el = document.getElementById('lc-'+k);
+      try{
+        const r = await fetch('/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:k,prompt})}).then(r=>r.json());
+        el.innerHTML = `<h3>${cards[k][0]} <span>${cards[k][1]}</span></h3>
+          <div class="stat status ${r.ok?'ok':'fail'}">${r.ok?'built':'failed'}${r.latency?` · ${r.latency.toFixed(1)} s`:''}${r.tokens_out?` · ${r.tokens_out} tokens · $${(r.cost_usd*1000).toFixed(2)} per 1k`:''}</div>
+          ${r.png?`<img src="${r.png}" alt="render">`:`<div class="stat">${esc(r.error||'')}</div>`}
+          <details><summary>code</summary><pre>${esc(r.code||'')}</pre></details>`;
+      }catch(e){ el.querySelector('.stat').textContent = 'request failed: '+e; }
+    }));
+  }
+  document.getElementById('runBtn').addEventListener('click', runAll);
+}
+</script>
+</body>
+</html>

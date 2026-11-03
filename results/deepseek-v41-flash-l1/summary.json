@@ -1,0 +1,19 @@
+{
+  "name": "deepseek-v41-flash-l1",
+  "model": "accounts/fireworks/models/deepseek-v4p1-flash-1017",
+  "level": "l1",
+  "n": 300,
+  "exec_rate": 0.9,
+  "cd_mean": 16.822016418234803,
+  "cd_median": 12.169897164989393,
+  "cd_all_penalized": 25.13981477641132,
+  "iou_mean": 42.954302136345916,
+  "cd_lt_5_rate": 0.18,
+  "cd_lt_10_rate": 0.39,
+  "latency_p50": 6.8499228954315186,
+  "latency_mean": 9.804797174135844,
+  "tokens_in": 47197,
+  "tokens_out": 561870,
+  "cost_usd": 0.6884030999999999,
+  "cost_per_1k_parts": 2.2946769999999996
+}

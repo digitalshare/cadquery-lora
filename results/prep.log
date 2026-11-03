@@ -1,0 +1,6 @@
+train 76238 val 6464 levels 158580; join coverage train=1.000
+exec-verified: 22910/23000 in 91s
+cols ['uid', 'description', 'code'] ['uid', 'description', 'code'] 20000 300
+train: 29783 examples, ~10.7M tokens, levels=Counter({'expert': 10011, 'intermediate': 7507, 'beginner': 7474, 'abstract': 4791})
+val: 300 examples, ~0.1M tokens, levels=Counter({'expert': 101, 'beginner': 75, 'intermediate': 72, 'abstract': 52})
+done in 91s

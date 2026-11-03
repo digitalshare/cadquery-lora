@@ -1,0 +1,12 @@
+{
+  "baseModel": "accounts/fireworks/models/qwen3p5-9b",
+  "dataset": "accounts/wjing63/datasets/cadq-train-v1",
+  "evaluationDataset": "accounts/wjing63/datasets/cadq-val-v1",
+  "outputModel": "accounts/wjing63/models/cadq-qwen35-9b-v1",
+  "displayName": "text2cadquery-v1",
+  "epochs": 1,
+  "loraRank": 16,
+  "maxContextLength": 4096,
+  "batchSizeSamples": 32,
+  "lrScheduler": {"cosine": {"minLrRatio": 0.1}}
+}

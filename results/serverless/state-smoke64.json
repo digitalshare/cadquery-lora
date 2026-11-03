@@ -1,0 +1,51 @@
+{
+  "tag": "smoke64",
+  "base_model": "accounts/fireworks/models/qwen3p6-35b-a3b",
+  "tokenizer": "Qwen/Qwen3.6-35B-A3B",
+  "session": "accounts/wjing63/trainingSessions/ts-1c3bb2224ebc4937810254c8af87ccad",
+  "session_id": "ts-1c3bb2224ebc4937810254c8af87ccad",
+  "run_id": "run-7597ceabd404433d8794e712be714ba7",
+  "checkpoints": [
+    {
+      "step": 3,
+      "name": "smoke64-s3",
+      "path": "wjing63/run-7597ceabd404433d8794e712be714ba7/smoke64-s3-02e45b30",
+      "loss": 0.6987055347857513
+    }
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "loss": 0.788847250399523,
+      "t": 54.179826974868774
+    },
+    {
+      "step": 2,
+      "loss": 0.7385700260247857,
+      "t": 90.32203698158264
+    },
+    {
+      "step": 3,
+      "loss": 0.6987055347857513,
+      "t": 110.66578984260559
+    }
+  ],
+  "args": {
+    "base_model": "accounts/fireworks/models/qwen3p6-35b-a3b",
+    "tokenizer": "Qwen/Qwen3.6-35B-A3B",
+    "data": "/Users/cw/work/hackathon/1002/data/train.jsonl",
+    "max_examples": 192,
+    "max_len": 3072,
+    "batch": 64,
+    "accum": 1,
+    "lr": 0.0001,
+    "warmup": 10,
+    "rank": 16,
+    "tag": "smoke64",
+    "save_every": 100,
+    "seed": 0,
+    "dry_run": false
+  },
+  "started": 1793658369.0808141,
+  "finished": 1793658502.8838909
+}

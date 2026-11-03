@@ -1,0 +1,46 @@
+{
+  "tag": "smoke",
+  "base_model": "accounts/fireworks/models/qwen3p6-35b-a3b",
+  "tokenizer": "Qwen/Qwen3.6-35B-A3B",
+  "session": "accounts/wjing63/trainingSessions/ts-df559979b9454f4f8e7e5c605c827569",
+  "session_id": "ts-df559979b9454f4f8e7e5c605c827569",
+  "run_id": "run-339b8698df8c4fb595db20f7c909fa53",
+  "checkpoints": [
+    {
+      "step": 2,
+      "name": "smoke-s2",
+      "path": "wjing63/run-339b8698df8c4fb595db20f7c909fa53/smoke-s2-ddc38ff8",
+      "loss": 0.7775529405080114
+    }
+  ],
+  "steps": [
+    {
+      "step": 1,
+      "loss": 0.7955883905126164,
+      "t": 83.83699989318848
+    },
+    {
+      "step": 2,
+      "loss": 0.7775529405080114,
+      "t": 122.08021092414856
+    }
+  ],
+  "args": {
+    "base_model": "accounts/fireworks/models/qwen3p6-35b-a3b",
+    "tokenizer": "Qwen/Qwen3.6-35B-A3B",
+    "data": "/Users/cw/work/hackathon/1002/data/train.jsonl",
+    "max_examples": 64,
+    "max_len": 3072,
+    "batch": 16,
+    "accum": 2,
+    "lr": 0.0001,
+    "warmup": 10,
+    "rank": 16,
+    "tag": "smoke",
+    "save_every": 2,
+    "seed": 0,
+    "dry_run": false
+  },
+  "started": 1793658183.175902,
+  "finished": 1793658310.1263301
+}

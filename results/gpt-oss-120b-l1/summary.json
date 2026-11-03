@@ -1,0 +1,19 @@
+{
+  "name": "gpt-oss-120b-l1",
+  "model": "accounts/fireworks/models/gpt-oss-120b",
+  "level": "l1",
+  "n": 300,
+  "exec_rate": 0.85,
+  "cd_mean": 17.167233434572967,
+  "cd_median": 13.231966127420325,
+  "cd_all_penalized": 29.592148419387026,
+  "iou_mean": 39.91293822087518,
+  "cd_lt_5_rate": 0.14,
+  "cd_lt_10_rate": 0.3566666666666667,
+  "latency_p50": 2.701550006866455,
+  "latency_mean": 2.9975736864407856,
+  "tokens_in": 59536,
+  "tokens_out": 226160,
+  "cost_usd": 0.1446264,
+  "cost_per_1k_parts": 0.48208799999999996
+}

@@ -1,0 +1,19 @@
+{
+  "name": "smoke-deepseek",
+  "model": "accounts/fireworks/models/deepseek-v4p1-flash-1017",
+  "level": "l1",
+  "n": 6,
+  "exec_rate": 0.5,
+  "cd_mean": 18.691018501821315,
+  "cd_median": 21.586126396970023,
+  "cd_all_penalized": 59.34550925091065,
+  "iou_mean": 40.54665433421802,
+  "cd_lt_5_rate": 0.16666666666666666,
+  "cd_lt_10_rate": 0.16666666666666666,
+  "latency_p50": 6.871144413948059,
+  "latency_mean": 6.331257939338684,
+  "tokens_in": 968,
+  "tokens_out": 6725,
+  "cost_usd": 0.0083604,
+  "cost_per_1k_parts": 1.3934000000000002
+}
