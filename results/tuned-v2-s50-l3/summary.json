@@ -1,0 +1,19 @@
+{
+  "name": "tuned-v2-s50-l3",
+  "model": "ckpt|wjing63/run-2fcf471b32de4e5eae3d03fb2be6e9e9/v2-s50-ef24a68b|Qwen/Qwen3.6-35B-A3B",
+  "level": "l3",
+  "n": 300,
+  "exec_rate": 0.9566666666666667,
+  "cd_mean": 22.561835582425843,
+  "cd_median": 19.45168104215626,
+  "cd_all_penalized": 25.917489373854057,
+  "iou_mean": 38.084050462955304,
+  "cd_lt_5_rate": 0.18333333333333332,
+  "cd_lt_10_rate": 0.31,
+  "latency_p50": 1.6628576517105103,
+  "latency_mean": 2.0706242362658185,
+  "tokens_in": 200727,
+  "tokens_out": 102856,
+  "cost_usd": 0.22763991000000003,
+  "cost_per_1k_parts": 0.7587997000000001
+}

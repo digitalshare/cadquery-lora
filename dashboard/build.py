@@ -33,7 +33,8 @@ MODELS = [  # key, label, kind, run prefix
     ("deepseek", "DeepSeek V4.1 Flash", "open", "deepseek-v41-flash"),
     ("gptoss", "gpt-oss-120b", "open", "gpt-oss-120b"),
     ("base", "Qwen 3.6 35B-A3B untuned", "open", "qwen36-35b-base"),
-    ("tuned", "Qwen 3.6 + LoRA (ours)", "ours", "tuned-v1-s100"),
+    ("tuned", "Qwen 3.6 + LoRA v1 (ours)", "ours", "tuned-v1-s100"),
+    ("tuned_v2", "Qwen 3.6 + LoRA v2, units fix (ours)", "ours", "tuned-v2-s100"),
 ]
 runs = {}
 models = []
@@ -47,8 +48,10 @@ for key, label, kind, pre in MODELS:
 # tuned latency measured alone
 lat = load_run("latency-s100-l1")
 if lat:
-    for lvl in ("l1", "l3"):
-        if lvl in models[-1]: models[-1][lvl]["latency"] = lat[0]["latency_p50"]; models[-1][lvl]["latency_note"] = "measured alone, 60 parts"
+    for m in models:
+        if m["kind"] != "ours": continue
+        for lvl in ("l1", "l3"):
+            if lvl in m: m[lvl]["latency"] = lat[0]["latency_p50"]; m[lvl]["latency_note"] = "measured alone, 60 parts (v1 checkpoint)"
 
 # checkpoints
 state = json.load(open(os.path.join(R, "serverless/state-v1.json")))
@@ -61,6 +64,7 @@ for c in ckpts:
 loss = [dict(step=s["step"], loss=round(s["loss"], 4)) for s in state["steps"]]
 
 # gallery selection from L1 runs
+models = [m for m in models if "l1" in m or "l3" in m]  # drop rows with no runs yet
 base_s, base = runs[("base", "l1")]; tuned_s, tuned = runs[("tuned", "l1")]; opus_s, opus = runs[("opus", "l1")]
 def cd(rs, u): r = rs.get(u, {}); return r.get("cd_mean") if r.get("ok") else None
 cands = []

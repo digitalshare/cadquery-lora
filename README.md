@@ -32,6 +32,10 @@ Benchmark: 300 held-out parts from TextCAD-Bench T1 (DeepCAD test split, zero ov
 | tuned-v1-s50-l3 | l3 | 300 | 0.973 | 18.096 | 23.781 | 0.330 | 38.366 | 2.623 | 0.666 | 495 |
 | tuned-v1-s75-l1 | l1 | 300 | 0.953 | 16.573 | 25.162 | 0.367 | 39.061 | 2.529 | 0.414 | 885 |
 | tuned-v1-s75-l3 | l3 | 300 | 0.960 | 17.409 | 24.884 | 0.320 | 39.761 | 2.771 | 0.675 | 474 |
+| tuned-v2-s100-l1 | l1 | 300 | 0.940 | 14.207 | 23.986 | 0.387 | 39.593 | 1.593 | 0.523 | 740 |
+| tuned-v2-s100-l3 | l3 | 300 | 0.970 | 19.541 | 24.729 | 0.323 | 37.715 | 1.706 | 0.762 | 424 |
+| tuned-v2-s50-l1 | l1 | 300 | 0.967 | 18.589 | 24.203 | 0.323 | 35.963 | 1.503 | 0.451 | 717 |
+| tuned-v2-s50-l3 | l3 | 300 | 0.957 | 19.452 | 25.917 | 0.310 | 38.084 | 1.663 | 0.759 | 409 |
 
 **Our model:** `accounts/wjing63/models/cadq-qwen36-35b-v1` = Qwen 3.6 35B-A3B (3B active) + LoRA rank 16, trained on
 6,400 verified description→CadQuery examples for 100 optimizer steps (3.1M tokens, ~$7, 30 min) on Fireworks Serverless Training.
@@ -48,6 +52,8 @@ Rows `tuned-v1-s25/s50/s75/s100` are the checkpoints every 25 steps; `qwen36-35b
 - Honest caveat: Claude Haiku 5.5 is a strong cheap closed baseline. Abstract prompts: 42% usable at $0.33/1k (we: 39% at $0.37); our win there is latency only.
   Expert prompts: Haiku 38% usable at $0.92/1k and 6.4 s; we: 31% at $0.68/1k and 1.7 s, so we win on latency (3.7×) and usable parts per dollar (456 vs 418), not on raw quality. Shape accuracy (Chamfer) still trails Opus: the training code is in DeepCAD's internal units while prompts are normalised,
   so the model must rescale every coordinate; a data fix (re-expressing code in prompt units) is the obvious next step.
+- Benchmark caveat: 29 of the 300 T1 parts (10%) have a degenerate, zero-thickness ground-truth mesh in TextCAD-Bench (`results/flat_gt_uids.json`). Every model scores Chamfer ~40 on them whatever it generates; the tuned model's output on those parts matches the prompt's stated dimensions. `python eval/report.py --valid-gt` recomputes all rows on the 271 valid parts (all models gain ~1.2 Chamfer and ~3 usable-rate points; rankings are unchanged).
+- v2 (`tuned-v2-*`): same parts and budget, code rewritten into prompt units with the centering origin removed (`data/prep_v2.py`), so the model copies the prompt's numbers instead of multiplying by 200/scale. Result at step 100: a wash. Better Chamfer median on abstract prompts (14.2 vs 15.9) and better execution on expert prompts (97% vs 94%), worse on the opposite pair, identical usable rate (38.7%), and 40% higher cost per part because decimals take more tokens. Error analysis (`bad: wrong proportions` dominates for every model, Opus included) says the remaining gap is in how the part's overall proportions are inferred from the prompt, not in arithmetic. v1 stays the headline model.
 - Latency rows for tuned checkpoints were measured while three evals shared the sampling pool. Re-measured alone (`latency-s100-l1`, 60 parts): **p50 1.74 s, mean 2.46 s**, vs Opus 2.4 s (abstract) and 5.7 s (expert).
 - Demo renders: `demo/part00072791/` (benchmark part: tuned matches ground truth, Chamfer 1.6; Opus 36.5; gpt-oss failed) and `demo/bracket/` (free-prose bracket: tuned builds a block with holes, Opus and gpt-oss get the L-shape). The model learned the dataset's conventions, not general CAD prose yet.
 
