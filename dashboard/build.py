@@ -6,6 +6,7 @@ import base64, json, os, random, statistics, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "demo")); sys.path.insert(0, os.path.join(ROOT, "eval"))
 from compare import render_png
+from mesh3d import mesh_payload
 
 R = os.path.join(ROOT, "results"); OUT = os.path.join(ROOT, "dashboard"); REN = os.path.join(OUT, "renders")
 os.makedirs(REN, exist_ok=True)
@@ -91,11 +92,13 @@ gallery = []
 for grp, u, cb, ct, co, nops in chosen:
     entry = dict(uid=u, group=grp, n_ops=nops, prompt=T1[u]["prompt_l1"], renders={}, cd={}, ok={}, code={}, latency={})
     entry["renders"]["gt"] = render(u, "gt", os.path.join(GT, u + ".obj"))
+    entry["mesh"] = {"gt": mesh_payload(os.path.join(GT, u + ".obj"))}
     for tag, rs, run in (("base", base, "qwen36-35b-base-l1"), ("tuned", tuned, "tuned-v1-s100-l1"), ("opus", opus, "opus55-l1")):
         r = rs.get(u, {}); entry["ok"][tag] = bool(r.get("ok")); entry["cd"][tag] = r.get("cd_mean"); entry["code"][tag] = r.get("code") or ""
         entry["latency"][tag] = r.get("latency"); entry["error"] = entry.get("error", {}); entry["error"][tag] = r.get("error") or ""
         stl = os.path.join(R, run, "stl", u + ".stl")
         entry["renders"][tag] = render(u, tag, stl) if r.get("ok") and os.path.exists(stl) else None
+        entry["mesh"][tag] = mesh_payload(stl) if entry["renders"][tag] else None
     gallery.append(entry)
 
 tiles = dict(

@@ -80,6 +80,6 @@ Prompt levels: `l1` = abstract one-sentence description, `l3` = full expert spec
 
 ## Dashboard (demo)
 
-- Static, shareable: `python dashboard/build.py` → `dashboard/index.html` (published at https://claude.ai/artifact/Xq1icddNLg17qSTHeckv57). Headline before/after tiles, training loss curve with checkpoint markers, checkpoint progression, comparison charts against Claude Opus/Haiku, DeepSeek, gpt-oss, a 12-part before/after gallery with code, and the workflow figure.
+- Static, shareable: `python dashboard/build.py` → `dashboard/index.html` (published at https://claude.ai/artifact/Xq1icddNLg17qSTHeckv57). Headline before/after tiles, training loss curve with checkpoint markers, checkpoint progression, comparison charts against Claude Opus/Haiku, DeepSeek, gpt-oss, a 12-part before/after gallery with code, and the workflow figure. Click any render to open an interactive 3D view (three.js) of ground truth, untuned, tuned and Opus side by side with a shared rotation; live results get a "Rotate all three in 3D" button.
 - Live (stage demo): `.venv/bin/python dashboard/serve.py` → http://localhost:8787 adds a prompt box that runs the untuned base, the tuned checkpoint (Fireworks serverless sampler) and Claude Opus 5.5 side by side, executes the code locally and renders the meshes. Presets: benchmark disc (tuned wins), free-prose bracket (tuned misses), expert spec.
 - Explainer for newcomers (task, LoRA, workflow, platform, scoring): https://claude.ai/artifact/6Xg7WTFjWhZc7TkrTfNKrT

@@ -11,6 +11,7 @@ from flask import Flask, request, jsonify, Response
 import run as R
 from cadexec import run_cadquery
 from compare import render_png
+from mesh3d import mesh_payload
 
 state = json.load(open(os.path.join(ROOT, "results/serverless/state-v1.json")))
 CKPT = [c["path"] for c in state["checkpoints"] if c["name"] == "v1-s100"][0]
@@ -38,14 +39,16 @@ def run_one():
     code = R.extract_code(text)
     stl = tempfile.NamedTemporaryFile(suffix=".stl", delete=False).name
     ok, err = run_cadquery(code, stl, timeout=60)
-    png = None
+    png = None; mesh = None
     if ok:
+        try: mesh = mesh_payload(stl)
+        except Exception: mesh = None
         p = stl.replace(".stl", ".png")
         try: render_png(stl, p); png = "data:image/png;base64," + base64.b64encode(open(p, "rb").read()).decode()
         except Exception as e: err = f"render failed: {e}"[:200]
     pin, pout = PRICES[key]
     return jsonify(dict(model=key, ok=ok, error=err, code=code, latency=dt, tokens_in=ti, tokens_out=to,
-                        cost_usd=(ti * pin + to * pout) / 1e6, png=png))
+                        cost_usd=(ti * pin + to * pout) / 1e6, png=png, mesh=mesh))
 
 def warm():
     for k in ("base", "tuned"):

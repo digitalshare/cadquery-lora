@@ -6,6 +6,7 @@
 <title>Text to CadQuery dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <style>
 :root{
   /* layout: full-width dashboard, 1200px max, summary tiles first, then charts, then gallery and live demo */
@@ -78,6 +79,17 @@ figure{margin:16px 0 0;background:var(--panel);border:1px solid var(--line);bord
 figure svg{display:block;max-width:100%;height:auto;color:var(--ink)}
 figcaption{font-size:13px;color:var(--muted);margin-top:8px}
 a{color:var(--cool)}
+.r img, .lc img{cursor:zoom-in}
+.viewer{position:fixed;inset:0;background:rgba(10,12,11,.94);display:none;z-index:50;padding:24px}
+.viewer.on{display:flex;flex-direction:column}
+.viewer .vhead{display:flex;justify-content:space-between;align-items:center;color:#fff;gap:12px;font-size:14px}
+.viewer .vhead b{font-size:16px}
+.viewer canvas{flex:1;width:100%;height:100%;border-radius:10px;background:var(--panel);margin-top:10px;cursor:grab;touch-action:none}
+.viewer .vlabels{display:grid;gap:8px;margin-top:8px}
+.viewer .vlabels div{color:#fff;font-size:13px;text-align:center}
+.viewer .vlabels div.ours{color:var(--accent);font-weight:600}
+.viewer button{background:var(--panel)}
+.v3d{margin-top:8px}
 @media (max-width:640px){ .renders{grid-template-columns:repeat(2,1fr)} .codes{grid-template-columns:1fr} .gallery{grid-template-columns:1fr} }
 </style>
 </head>
@@ -153,6 +165,11 @@ a{color:var(--cool)}
 <figcaption>Data preparation and the training loop run on the laptop; Fireworks runs the GPUs. Checkpoints are sampled directly for evaluation, and the final one was promoted to a model in the account. Full explainer with the task, LoRA, and scoring diagrams: see the companion page.</figcaption>
 </figure>
 </main>
+<div class="viewer" id="viewer" role="dialog" aria-label="3D comparison">
+  <div class="vhead"><b id="vtitle">3D view</b><span>drag to rotate · wheel to zoom · all panes share the same view</span><button id="vclose">Close (Esc)</button></div>
+  <canvas id="vcanvas"></canvas>
+  <div class="vlabels" id="vlabels"></div>
+</div>
 
 <script>
 window.LIVE=false;
@@ -242,6 +259,66 @@ document.getElementById('gallery').innerHTML = G.map(g=>{
   <details><summary>Show the code: untuned vs tuned</summary><div class="codes"><pre>${hl(g.code.base||'(no code)', g.error&&g.error.base)}</pre><pre>${esc(g.code.tuned||'(no code)')}</pre></div></details></div>`;
 }).join('');
 
+
+// ---- 3D viewer (one WebGL context, N panes, shared rotation)
+const V = (() => {
+  const canvas = document.getElementById('vcanvas'), modal = document.getElementById('viewer'), labels = document.getElementById('vlabels');
+  let renderer, scenes = [], camRot = {x: -0.6, y: 0.7}, zoom = 3.4, raf = null, dragging = false, last = null, auto = true;
+  const hex = n => parseInt(css(n).replace('#',''), 16);
+  function geom(payload){
+    const bin = atob(payload.pos), arr = new Float32Array(bin.length/4); const dv = new DataView(new ArrayBuffer(4));
+    const u8 = new Uint8Array(arr.buffer); for (let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(arr, 3)); g.computeVertexNormals(); return g;
+  }
+  function open(title, panes){ // panes: [{label, mesh (payload|null), ours, note}]
+    if (!renderer) { renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true}); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); }
+    document.getElementById('vtitle').textContent = title;
+    scenes = panes.map(p => {
+      const sc = new THREE.Scene();
+      sc.add(new THREE.HemisphereLight(0xffffff, 0x445566, 0.9));
+      const dl = new THREE.DirectionalLight(0xffffff, 0.8); dl.position.set(2, 3, 4); sc.add(dl);
+      if (p.mesh) {
+        const mat = new THREE.MeshStandardMaterial({color: p.ours ? hex('--accent') : (p.gt ? 0x7a8a7f : hex('--cool')), metalness:0.1, roughness:0.6, flatShading:true});
+        const m = new THREE.Mesh(geom(p.mesh), mat); sc.add(m);
+        const edges = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 25), new THREE.LineBasicMaterial({color: 0x111111, transparent:true, opacity:0.35})); sc.add(edges);
+        sc.userData.obj = [m, edges];
+      }
+      sc.userData.pane = p; return sc;
+    });
+    labels.style.gridTemplateColumns = `repeat(${panes.length},1fr)`;
+    labels.innerHTML = panes.map(p => `<div class="${p.ours?'ours':''}">${p.label}${p.note?` · ${p.note}`:''}${p.mesh?'':' · no mesh'}</div>`).join('');
+    modal.classList.add('on'); auto = true; zoom = 3.4; camRot = {x: -0.6, y: 0.7}; loop();
+  }
+  function close(){ modal.classList.remove('on'); if (raf) cancelAnimationFrame(raf); raf = null; }
+  function loop(){
+    const w = canvas.clientWidth, h = canvas.clientHeight; if (canvas.width !== w*renderer.getPixelRatio() || canvas.height !== h*renderer.getPixelRatio()) renderer.setSize(w, h, false);
+    renderer.setScissorTest(true); const n = scenes.length, pw = Math.floor(w / n);
+    if (auto) camRot.y += 0.004;
+    scenes.forEach((sc, i) => {
+      const cam = new THREE.PerspectiveCamera(28, pw / h, 0.01, 100);
+      const r = zoom; cam.position.set(r*Math.sin(camRot.y)*Math.cos(camRot.x), -r*Math.sin(camRot.x), r*Math.cos(camRot.y)*Math.cos(camRot.x)); cam.up.set(0,0,1); cam.lookAt(0,0,0);
+      renderer.setViewport(i*pw, 0, pw, h); renderer.setScissor(i*pw, 0, pw, h); renderer.setClearColor(0x000000, 0); renderer.render(sc, cam);
+    });
+    raf = requestAnimationFrame(loop);
+  }
+  canvas.addEventListener('pointerdown', e => { dragging = true; auto = false; last = [e.clientX, e.clientY]; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', e => { if (!dragging) return; camRot.y += (e.clientX - last[0]) * 0.01; camRot.x = Math.max(-1.5, Math.min(1.5, camRot.x - (e.clientY - last[1]) * 0.01)); last = [e.clientX, e.clientY]; });
+  canvas.addEventListener('pointerup', () => dragging = false);
+  canvas.addEventListener('wheel', e => { e.preventDefault(); zoom = Math.max(1.2, Math.min(9, zoom * (e.deltaY > 0 ? 1.1 : 0.9))); }, {passive:false});
+  document.getElementById('vclose').addEventListener('click', close);
+  modal.addEventListener('click', e => { if (e.target === modal) close(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+  return {open, close};
+})();
+const cdTxt = v => v==null ? 'did not run' : `CD ${v.toFixed(1)}`;
+document.getElementById('gallery').addEventListener('click', e => {
+  const img = e.target.closest('.r img, .r .none'); if (!img) return;
+  const card = e.target.closest('.card'); const g = G[[...document.querySelectorAll('#gallery .card')].indexOf(card)];
+  V.open(`Part ${g.uid}: ground truth vs untuned vs tuned vs Opus 5.5`, [
+    {label:'Ground truth', mesh:g.mesh.gt, gt:true}, {label:'Untuned', mesh:g.mesh.base, note:cdTxt(g.cd.base)},
+    {label:'Tuned (ours)', mesh:g.mesh.tuned, ours:true, note:cdTxt(g.cd.tuned)}, {label:'Claude Opus 5.5', mesh:g.mesh.opus, note:cdTxt(g.cd.opus)}]);
+});
+
 // ---- live demo
 if (window.LIVE) {
   document.getElementById('live').classList.add('on');
@@ -251,18 +328,26 @@ if (window.LIVE) {
   const cards = {base:['Untuned Qwen 3.6','before'], tuned:['Tuned Qwen 3.6','after, our model'], opus:['Claude Opus 5.5','closed reference']};
   const box = document.getElementById('livecards');
   async function runAll(){
-    const prompt = ta.value.trim(); if(!prompt) return;
+    const prompt = ta.value.trim(); if(!prompt) return; document.querySelectorAll('.v3d').forEach(x=>x.remove());
     box.innerHTML = Object.entries(cards).map(([k,[t,s]])=>`<div class="lc ${k==='tuned'?'ours':''}" id="lc-${k}"><h3>${t} <span>${s}</span></h3><div class="stat status wait"><span class="spinner"></span>generating…</div></div>`).join('');
+    const live = {};
     await Promise.all(Object.keys(cards).map(async k=>{
       const el = document.getElementById('lc-'+k);
       try{
         const r = await fetch('/run',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:k,prompt})}).then(r=>r.json());
+        live[k] = r;
         el.innerHTML = `<h3>${cards[k][0]} <span>${cards[k][1]}</span></h3>
           <div class="stat status ${r.ok?'ok':'fail'}">${r.ok?'built':'failed'}${r.latency?` · ${r.latency.toFixed(1)} s`:''}${r.tokens_out?` · ${r.tokens_out} tokens · $${(r.cost_usd*1000).toFixed(2)} per 1k`:''}</div>
           ${r.png?`<img src="${r.png}" alt="render">`:`<div class="stat">${esc(r.error||'')}</div>`}
           <details><summary>code</summary><pre>${esc(r.code||'')}</pre></details>`;
       }catch(e){ el.querySelector('.stat').textContent = 'request failed: '+e; }
     }));
+    const b = document.createElement('div'); b.className = 'btns v3d'; b.innerHTML = '<button class="primary" id="live3d">Rotate all three in 3D</button>'; box.after(b);
+    document.getElementById('live3d').addEventListener('click', () => V.open('Live result: untuned vs tuned vs Opus 5.5', [
+      {label:'Untuned', mesh:live.base&&live.base.mesh, note: live.base&&live.base.ok?`${live.base.latency.toFixed(1)} s`:'failed'},
+      {label:'Tuned (ours)', mesh:live.tuned&&live.tuned.mesh, ours:true, note: live.tuned&&live.tuned.ok?`${live.tuned.latency.toFixed(1)} s`:'failed'},
+      {label:'Claude Opus 5.5', mesh:live.opus&&live.opus.mesh, note: live.opus&&live.opus.ok?`${live.opus.latency.toFixed(1)} s`:'failed'}]));
+    document.querySelectorAll('#livecards img').forEach(im => im.addEventListener('click', () => document.getElementById('live3d').click()));
   }
   document.getElementById('runBtn').addEventListener('click', runAll);
 }
