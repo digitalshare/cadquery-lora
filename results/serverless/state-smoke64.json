@@ -33,7 +33,7 @@
   "args": {
     "base_model": "accounts/fireworks/models/qwen3p6-35b-a3b",
     "tokenizer": "Qwen/Qwen3.6-35B-A3B",
-    "data": "/Users/cw/work/hackathon/1002/data/train.jsonl",
+    "data": "/Users/cw/work/hackathon/1102/data/train.jsonl",
     "max_examples": 192,
     "max_len": 3072,
     "batch": 64,
